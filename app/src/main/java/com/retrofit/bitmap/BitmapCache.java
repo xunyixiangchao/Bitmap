@@ -1,9 +1,16 @@
 package com.retrofit.bitmap;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build;
 import android.util.LruCache;
 
+import com.retrofit.bitmap.disklrucache.DiskLruCache;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -18,6 +25,7 @@ import java.util.Set;
 public class BitmapCache {
 
     private volatile static BitmapCache instance;
+    private static int DEFAULT_DISK_MEMORY = 10 * 1024 * 1024;
 
     public static BitmapCache getInstance() {
         if (instance == null) {
@@ -34,6 +42,8 @@ public class BitmapCache {
     LruCache<String, Bitmap> lruCache;
     //复用池
     Set<WeakReference<Bitmap>> reusablePool;
+
+    DiskLruCache diskLruCache;
 
     /**
      * 放入内存缓存
@@ -62,7 +72,86 @@ public class BitmapCache {
         lruCache.evictAll();
     }
 
-    public void init(int memorySize) {
+    /**
+     * 图片放入磁盘缓存
+     *
+     * @param key
+     * @param bitmap
+     */
+    public void putBitmap2Disk(String key, Bitmap bitmap) {
+        DiskLruCache.Snapshot snapshot = null;
+        OutputStream outputStream = null;
+        try {
+            snapshot = diskLruCache.get(key);
+            if (snapshot == null) {
+                DiskLruCache.Editor edit = diskLruCache.edit(key);
+                if (edit != null) {
+                    outputStream = edit.newOutputStream(0);
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 50, outputStream);
+                    edit.commit();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (snapshot != null) {
+                snapshot.close();
+            }
+            if (outputStream != null) {
+                try {
+                    outputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    }
+
+    /**
+     * 从磁盘缓存取图片
+     *
+     * @param key
+     * @return
+     */
+    public Bitmap getBitmapFromDisk(String key, Bitmap reusable) {
+        DiskLruCache.Snapshot snapshot = null;
+        Bitmap bitmap = null;
+        try {
+            snapshot = diskLruCache.get(key);
+            if (snapshot == null) {
+                return null;
+            }
+            InputStream inputStream = snapshot.getInputStream(0);
+            BitmapFactory.Options options = new BitmapFactory.Options();
+            options.inMutable = true;
+            options.inBitmap = reusable;
+            bitmap = BitmapFactory.decodeStream(inputStream, null, options);
+            if (bitmap != null) {
+                lruCache.put(key, bitmap);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (snapshot != null) {
+                snapshot.close();
+            }
+        }
+        return bitmap;
+    }
+
+    /**
+     * 关闭磁盘缓存
+     */
+    public void closeDisk(){
+        try {
+            diskLruCache.delete();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void init(int memorySize, String dir) {
         //内存初始化
         lruCache = new LruCache<String, Bitmap>(memorySize * 1024 * 1024) {
             @Override
@@ -76,6 +165,9 @@ public class BitmapCache {
             @Override
             protected void entryRemoved(boolean evicted, String key, Bitmap oldValue, Bitmap newValue) {
                 if (oldValue.isMutable()) {
+                    // 3.0 bitmap 缓存 native
+                    // <8.0  bitmap 缓存 java
+                    // 8.0 native
                     reusablePool.add(new WeakReference<Bitmap>(oldValue, getReferenceQueue()));
                 } else {
                     oldValue.recycle();
@@ -84,7 +176,13 @@ public class BitmapCache {
         };
         //复用池初始化
         reusablePool = Collections.synchronizedSet(new HashSet<WeakReference<Bitmap>>());
-
+        //磁盘缓存
+        try {
+            diskLruCache = DiskLruCache.open(new File(dir), BuildConfig.VERSION_CODE, 1,
+                    DEFAULT_DISK_MEMORY);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 
@@ -108,10 +206,11 @@ public class BitmapCache {
     private ReferenceQueue<Bitmap> getReferenceQueue() {
         if (referenceQueue == null) {
             referenceQueue = new ReferenceQueue<>();
-            while (!shutDown) {
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    while (!shutDown) {
                         try {
                             Reference<? extends Bitmap> remove = referenceQueue.remove();
                             Bitmap bitmap = remove.get();
@@ -122,8 +221,8 @@ public class BitmapCache {
                             e.printStackTrace();
                         }
                     }
-                }).start();
-            }
+                }
+            }).start();
         }
         return referenceQueue;
     }
@@ -160,7 +259,8 @@ public class BitmapCache {
 
     private boolean checkInBitmap(Bitmap bitmap, int width, int height, int inSampleSize) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.KITKAT) {
-            return bitmap.getWidth() == width && bitmap.getHeight() == height && inSampleSize == 1;
+            return bitmap.getWidth() == width && bitmap.getHeight() == height &&
+                   inSampleSize == 1;
         }
         if (inSampleSize > 1) {
             width /= inSampleSize;
