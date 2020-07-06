@@ -72,7 +72,6 @@ public class MainActivity extends AppCompatActivity {
         bitmap = BitmapCache.getInstance().getBitmapFromDisk(key, reusable);
         Log.e("main", "使用磁盘缓存2" + bitmap);
         imageView.setImageBitmap(bitmap);
-        BitmapCache.getInstance().clearDisk();
         bitmap = BitmapCache.getInstance().getBitmapFromDisk(key, reusable);
         Log.e("main", "使用磁盘缓存3" + bitmap);
     }
