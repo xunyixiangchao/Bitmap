@@ -6,8 +6,9 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <ImageView
+    <com.retrofit.bitmap.view.BigImageView
         android:id="@+id/image"
+        android:layout_gravity="center_horizontal"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         />
