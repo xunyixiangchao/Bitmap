@@ -1,8 +1,9 @@
 package com.retrofit.bitmap;
 
-import android.app.ActivityManager;
-import android.content.Context;
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
+import android.view.Window;
 
 import com.retrofit.bitmap.view.BigImageView;
 
@@ -14,6 +15,25 @@ import androidx.appcompat.app.AppCompatActivity;
 public class MainActivity extends AppCompatActivity {
 
     @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        //屏幕
+        DisplayMetrics dm = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(dm);
+        //应用区域
+        Rect outRect1 = new Rect();
+        getWindow().getDecorView().getWindowVisibleDisplayFrame(outRect1);
+
+        //View绘制区域
+        Rect outRect2 = new Rect();
+        getWindow().findViewById(Window.ID_ANDROID_CONTENT).getDrawingRect(outRect2);
+        int viewTop = getWindow().findViewById(Window.ID_ANDROID_CONTENT).getTop();//要用这种方法
+        imageView.setTitleHeight(viewTop);
+    }
+
+    BigImageView imageView;
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
@@ -21,21 +41,22 @@ public class MainActivity extends AppCompatActivity {
 //        InputStream open = getResources().getAssets().open("big2.jpg");
 //            Log.e("Bitmap",open.toString());
 //        imageView.setImageBitmap(BitmapResize.resizeBitmapFromResource(this, R.mipmap.big2, 800, 600, true, null));
-        ActivityManager service = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+//        ActivityManager service = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
 //        int memory = service.getLargeMemoryClass() > 0 ? service.getLargeMemoryClass()
 //                                                       : service.getMemoryClass();
 
-        int memory = service.getMemoryClass();
-        String dir = getExternalCacheDir() + "bitmap";
-        //init方法最好写在application中
-        BitmapCache.getInstance().init(memory / 8, dir);
+//        int memory = service.getMemoryClass();
+//        String dir = getExternalCacheDir() + "bitmap";
+//        //init方法最好写在application中
+//        BitmapCache.getInstance().init(memory / 8, dir);
         InputStream open = null;
-        BigImageView imageView = findViewById(R.id.image);
+        imageView = findViewById(R.id.image);
         try {
             open = getResources().getAssets().open("big4.jpg");
         } catch (IOException e) {
             e.printStackTrace();
         }
+        imageView.setMode(BigImageView.MODE_VERTICAL);
         imageView.setImage(open);
 //        imageView.setImageBitmap(BitmapResize.resizeBitmapFromStream(open, 800, 600, true, null));
 //        String key = "big2";
