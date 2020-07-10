@@ -26,7 +26,7 @@ import androidx.annotation.Nullable;
  */
 public class BigImageView extends View implements View.OnTouchListener, GestureDetector.OnGestureListener {
     private static String TAG = BigImageView.class.getSimpleName();
-    private int mode;
+    private int mode = 0;
     public static final int MODE_VERTICAL = 0;
     public static final int MODE_HORIZONTAL = 1;
     public static final int MODE_ALL = 2;
@@ -35,8 +35,7 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
     private BitmapFactory.Options options;
     Scroller scroller;
     GestureDetector gestureDetector;
-    int titleHeight;
-    int statusBarHeight;
+    private boolean isAutoMode = true;
 
     public BigImageView(Context context) {
         this(context, null);
@@ -53,16 +52,10 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
         options = new BitmapFactory.Options();
         scroller = new Scroller(context);
         gestureDetector = new GestureDetector(context, this);
-        //获取status_bar_height资源的ID
-        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
-        if (resourceId > 0) {
-            //根据资源ID获取响应的尺寸值
-            statusBarHeight = getResources().getDimensionPixelSize(resourceId);
-            Log.e(TAG, "statusBar:" + statusBarHeight);
-        }
     }
 
     public void setMode(int mode) {
+        isAutoMode = false;
         this.mode = mode;
     }
 
@@ -109,30 +102,24 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
         if (bitmapRegionDecoder == null) {
             return;
         }
+        if (isAutoMode) {
+            mode = getAutoMode();
+        }
         rect.left = 0;
         rect.top = 0;
         switch (mode) {
             case MODE_VERTICAL:
-                rect.right = viewWidth;
+                rect.right = imageWidth;
                 //缩放因子
                 scale = viewWidth / (float) imageWidth;
-                if (scale < 1) {
-                    rect.right = imageWidth;
-                }
-                Log.e(TAG, "MODE_VERTICAL-scale" + scale);
+                Log.e(TAG, "MODE_VERTICAL-scale:" + scale);
                 // viewHeight/imageHeight=scale;
                 // bottom=viewHeight/scale;
-                rect.bottom = (int) ((viewHeight + statusBarHeight + titleHeight) / scale);
-//                rect.bottom=imageHeight;
-                Log.e(TAG, "rect.bottom:" + rect.bottom);
+                rect.bottom = (int) (viewHeight / scale);
                 break;
             case MODE_HORIZONTAL:
-                rect.bottom = (viewHeight + statusBarHeight + titleHeight);
-                scale = (viewHeight + statusBarHeight + titleHeight) / (float) imageHeight;
-                if (scale < 1) {
-                    rect.bottom = imageHeight;
-                }
-                Log.e(TAG, "MODE_HORIZONTAL-scale" + scale);
+                rect.bottom = imageHeight;
+                scale = viewHeight / (float) imageHeight;
                 rect.right = (int) (viewWidth / scale);
                 break;
             case MODE_ALL:
@@ -141,10 +128,19 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
                 break;
         }
         //第一种
-        options.inSampleSize = 1;
         options.inSampleSize = BitmapUtils.calculateInSameSize(imageWidth, imageHeight, viewWidth, viewHeight);
         //第二种
 //        options.inSampleSize = BitmapUtils.calculateInSameSize(scale);
+    }
+
+    private int getAutoMode() {
+        if (imageHeight > viewHeight && imageWidth > viewWidth) {
+            return MODE_ALL;
+        } else if (imageWidth > imageHeight) {
+            return MODE_HORIZONTAL;
+        } else {
+            return MODE_VERTICAL;
+        }
     }
 
     Bitmap bitmap = null;
@@ -187,11 +183,11 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
             switch (mode) {
                 case MODE_VERTICAL:
                     rect.top = scroller.getCurrY();
-                    rect.bottom = rect.top + (int) (viewHeight);
+                    rect.bottom = rect.top + (int) (viewHeight / scale);
                     break;
                 case MODE_HORIZONTAL:
                     rect.left = scroller.getCurrX();
-                    rect.right = rect.left + viewWidth;
+                    rect.right = (int) (rect.left + (viewWidth / scale));
                     break;
                 case MODE_ALL:
                     rect.top = scroller.getCurrY();
@@ -218,20 +214,20 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
     public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
         switch (mode) {
             case MODE_VERTICAL:
-                Log.e(TAG, "rect.bottom：" + rect.bottom + "imageHeight:" + imageHeight);
                 //改变加载图片的区域
-                rect.offset(0, (int) distanceY);
+                rect.offset(0, (int) (distanceY));
 
+                Log.e(TAG, "bottom-top:" + (rect.bottom - rect.top));
                 //bottom大于图片高了， 或者 top小于0了
-                Log.e(TAG, "rect.bottom：" + rect.bottom + "imageHeight:" + imageHeight);
+                Log.e(TAG, "rect.bottom：" + rect.bottom + " imageHeight:" + imageHeight);
                 if (rect.bottom > imageHeight) {
                     rect.bottom = imageHeight;
-                    rect.top = imageHeight - (int) (viewHeight + titleHeight + statusBarHeight);
+                    rect.top = imageHeight - (int) (viewHeight / scale);
                 }
                 Log.e(TAG, "rect.top：" + rect.top);
                 if (rect.top < 0) {
                     rect.top = 0;
-                    rect.bottom = (int) (viewHeight + titleHeight + statusBarHeight);
+                    rect.bottom = (int) (viewHeight / scale);
                 }
                 break;
             case MODE_HORIZONTAL:
@@ -240,12 +236,12 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
                 //最右
                 if (rect.right > imageWidth) {
                     rect.right = imageWidth;
-                    rect.left = imageWidth - viewWidth;
+                    rect.left = (int) (imageWidth - (viewWidth / scale));
                 }
                 //最左
                 if (rect.left < 0) {
                     rect.left = 0;
-                    rect.right = viewWidth;
+                    rect.right = (int) (viewWidth / scale);
                 }
                 break;
             case MODE_ALL:
@@ -254,11 +250,11 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
                 //bottom大于图片高了， 或者 top小于0了
                 if (rect.bottom > imageHeight) {
                     rect.bottom = imageHeight;
-                    rect.top = imageHeight - (int) (viewHeight);
+                    rect.top = imageHeight - (viewHeight);
                 }
                 if (rect.top < 0) {
                     rect.top = 0;
-                    rect.bottom = (int) (viewHeight);
+                    rect.bottom = (viewHeight);
                 }
                 //最右
                 if (rect.right > imageWidth) {
@@ -290,11 +286,21 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
          * minX: x方向滚动的最小值
          * maxX: x方向滚动的最大值
          */
-//        mScroller.fling(0, mRect.top, 0, (int) -velocityY, 0, 0,
-//                0, mImageHeight - (int) (mViewHeight));
-//        mScroller.fling(mRect.left, mRect.top, (int) -velocityX, (int) -velocityY, 0,
-//                mImageWidth - mViewWidth,
-//                0, mImageHeight - (int) (mViewHeight));
+        switch (mode) {
+            case MODE_VERTICAL:
+                scroller.fling(0, rect.top, 0, (int) -velocityY, 0, 0,
+                        0, (int) (imageHeight - (viewHeight / scale)));
+                break;
+            case MODE_HORIZONTAL:
+                scroller.fling(rect.left, 0, (int) -velocityX, 0, 0,
+                        (int) (imageWidth - (viewWidth / scale)), 0, 0);
+                break;
+            case MODE_ALL:
+                scroller.fling(rect.left, rect.top, (int) -velocityX, (int) -velocityY, 0,
+                        imageWidth - viewWidth,
+                        0, imageHeight - (viewHeight));
+                break;
+        }
         return false;
     }
 
@@ -311,8 +317,4 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
         return gestureDetector.onTouchEvent(event);
     }
 
-    public void setTitleHeight(int titleHeight) {
-        this.titleHeight = titleHeight;
-        Log.e(TAG, String.valueOf(titleHeight));
-    }
 }

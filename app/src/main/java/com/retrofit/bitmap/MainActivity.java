@@ -1,9 +1,6 @@
 package com.retrofit.bitmap;
 
-import android.graphics.Rect;
 import android.os.Bundle;
-import android.util.DisplayMetrics;
-import android.view.Window;
 
 import com.retrofit.bitmap.view.BigImageView;
 
@@ -17,18 +14,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        //屏幕
-        DisplayMetrics dm = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(dm);
-        //应用区域
-        Rect outRect1 = new Rect();
-        getWindow().getDecorView().getWindowVisibleDisplayFrame(outRect1);
-
-        //View绘制区域
-        Rect outRect2 = new Rect();
-        getWindow().findViewById(Window.ID_ANDROID_CONTENT).getDrawingRect(outRect2);
-        int viewTop = getWindow().findViewById(Window.ID_ANDROID_CONTENT).getTop();//要用这种方法
-        imageView.setTitleHeight(viewTop);
     }
 
     BigImageView imageView;
@@ -56,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        imageView.setMode(BigImageView.MODE_VERTICAL);
+//        imageView.setMode(BigImageView.MODE_ALL);
         imageView.setImage(open);
 //        imageView.setImageBitmap(BitmapResize.resizeBitmapFromStream(open, 800, 600, true, null));
 //        String key = "big2";
