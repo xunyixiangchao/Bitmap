@@ -1,6 +1,7 @@
 package com.retrofit.bitmap;
 
 import android.os.Bundle;
+import android.view.View;
 
 import com.retrofit.bitmap.view.BigImageView;
 
@@ -17,6 +18,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     BigImageView imageView;
+    InputStream open = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,15 +36,44 @@ public class MainActivity extends AppCompatActivity {
 //        String dir = getExternalCacheDir() + "bitmap";
 //        //init方法最好写在application中
 //        BitmapCache.getInstance().init(memory / 8, dir);
-        InputStream open = null;
+
         imageView = findViewById(R.id.image);
-        try {
-            open = getResources().getAssets().open("big4.jpg");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        findViewById(R.id.width_image).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    open = getResources().getAssets().open("timg.jpg");
+                    imageView.setImage(open);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        findViewById(R.id.height_image).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    open = getResources().getAssets().open("big4.jpg");
+                    imageView.setImage(open);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        findViewById(R.id.big_image).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                try {
+                    open = getResources().getAssets().open("big2.jpg");
+                    imageView.setImage(open);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
 //        imageView.setMode(BigImageView.MODE_ALL);
-        imageView.setImage(open);
+
 //        imageView.setImageBitmap(BitmapResize.resizeBitmapFromStream(open, 800, 600, true, null));
 //        String key = "big2";
 //        //第一次

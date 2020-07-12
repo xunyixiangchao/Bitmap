@@ -69,6 +69,7 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
      * @param image
      */
     public void setImage(InputStream image) {
+        resetConfig();
         //获取图片宽高
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeStream(image, null, options);
@@ -86,6 +87,13 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
             e.printStackTrace();
         }
         requestLayout();
+    }
+
+    private void resetConfig() {
+        rect = new Rect();
+        options = new BitmapFactory.Options();
+        bitmap = null;
+        scale = 1;
     }
 
     int viewWidth = 0;
@@ -159,7 +167,7 @@ public class BigImageView extends View implements View.OnTouchListener, GestureD
         matrix.setScale(scale * options.inSampleSize, scale * options.inSampleSize);
         canvas.drawBitmap(bitmap, matrix, null);
         Log.e(TAG, "bitmap,width: " + bitmap.getWidth() * scale + " height: " +
-                   bitmap.getHeight() * scale);
+                bitmap.getHeight() * scale);
     }
 
     @Override
